@@ -6,7 +6,7 @@ A lightweight self-hosted dashboard for monitoring a stratum-1 GPS/PPS NTP serve
 Collects data from `chronyc`, `gpsd`, and system sensors every 60 seconds,
 stores it in SQLite, and serves a live web dashboard.
 
-> **Author:** Damien — [github.com/Damien0505](https://github.com/Damien0505)
+> **Author:** Damien0505 — [github.com/Damien0505](https://github.com/Damien0505)
 
 ---
 
