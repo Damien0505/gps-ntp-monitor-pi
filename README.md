@@ -1,8 +1,12 @@
 # GPS / NTP Monitor
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A lightweight self-hosted dashboard for monitoring a stratum-1 GPS/PPS NTP server.
 Collects data from `chronyc`, `gpsd`, and system sensors every 60 seconds,
 stores it in SQLite, and serves a live web dashboard.
+
+> **Author:** Damien — [github.com/Damien0505](https://github.com/Damien0505)
 
 ---
 
@@ -21,7 +25,7 @@ stores it in SQLite, and serves a live web dashboard.
 ## Quick install (Raspberry Pi / Debian)
 
 ```bash
-git clone <your-repo> gps-ntp-monitor
+git clone https://github.com/Damien0505/gps-ntp-monitor-pi.git gps-ntp-monitor
 cd gps-ntp-monitor
 sudo bash install.sh
 ```
@@ -170,11 +174,13 @@ sqlite3 /opt/gps-ntp-monitor/monitor.db \
 
 **Dashboard shows "Cannot reach API"**
 - Ensure api.py is running: `systemctl status gps-ntp-api.service`
-- Check firewall: `sudo ufw allow 5000/tcp`
+- Check firewall: `sudo ufw allow 5001/tcp`
 
 **CPU temperature missing**
 - On Raspberry Pi: install `raspi-config` and enable thermal sensor
 - On x86: install `lm-sensors` and run `sensors-detect`
+
+---
 
 ## Screenshots:
 ![Image](https://github.com/user-attachments/assets/26e2ab35-419b-44b5-8269-9964323aec47)
@@ -182,3 +188,30 @@ sqlite3 /opt/gps-ntp-monitor/monitor.db \
 ![Image](https://github.com/user-attachments/assets/c3fedb0b-c0c9-40b4-a7f1-490324f08ce0)
 ![Image](https://github.com/user-attachments/assets/489e2eb2-ba6e-41fd-80ba-b9a7cabc9c29)
 ![Image](https://github.com/user-attachments/assets/46c1302f-543a-4765-98cc-73c464a58013)
+
+---
+
+## Contributing
+
+Contributions are welcome! Please open an issue or pull request. By contributing
+you agree that your contributions will be licensed under the same GPL v3 licence.
+
+---
+
+## Licence
+
+Copyright (C) 2026 Damien
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this
+program. If not, see <https://www.gnu.org/licenses/>.
+
+If you would like to use this project in a commercial context, please contact the
+author to discuss licensing arrangements.
