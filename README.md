@@ -200,7 +200,7 @@ you agree that your contributions will be licensed under the same GPL v3 licence
 
 ## Licence
 
-Copyright (C) 2026 Damien
+Copyright (C) 2026 Damien0505
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
