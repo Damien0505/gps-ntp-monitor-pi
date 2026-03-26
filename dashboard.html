@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPS / NTP Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:        #0e1117;
+    --bg2:       #161b27;
+    --bg3:       #1e2535;
+    --border:    rgba(255,255,255,0.08);
+    --border2:   rgba(255,255,255,0.14);
+    --text:      #e8ecf4;
+    --text2:     #8b93a7;
+    --text3:     #555e72;
+    --accent:    #3b82f6;
+    --green:     #22c55e;
+    --amber:     #f59e0b;
+    --red:       #ef4444;
+    --teal:      #14b8a6;
+    --purple:    #a855f7;
+    --pink:      #ec4899;
+    --font:      'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:    8px;
+    --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+  /* Layout */
+  .app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 28px; height: 28px; }
+  .header-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .header-sub { font-size: 12px; color: var(--text3); display: none; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  .status-dot.warn { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .last-update { font-size: 11px; color: var(--text3); }
+
+  main { padding: 20px 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+  /* Controls */
+  .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .seg { display: flex; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+  .seg button { background: transparent; border: none; color: var(--text2); padding: 6px 14px; font-size: 12px; font-family: var(--font); cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .seg button:hover { background: var(--bg3); color: var(--text); }
+  .seg button.active { background: var(--accent); color: #fff; }
+  .refresh-btn { background: transparent; border: 1px solid var(--border2); color: var(--text2); padding: 6px 14px; font-size: 12px; border-radius: var(--radius); cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Tab nav */
+  .tab-nav { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+  .tab-btn { background: transparent; border: none; color: var(--text2); padding: 10px 16px; font-size: 13px; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color 0.15s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* Metric cards */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .mc { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; }
+  .mc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 6px; }
+  .mc-value { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); line-height: 1.1; }
+  .mc-unit { font-size: 11px; font-weight: 400; color: var(--text2); }
+  .mc-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .mc.good .mc-value { color: var(--green); }
+  .mc.warn .mc-value { color: var(--amber); }
+  .mc.bad .mc-value  { color: var(--red); }
+
+  /* Chart panels */
+  .chart-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 14px; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .panel-title { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* Events */
+  .events-list { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .event-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .event-row:last-child { border-bottom: none; }
+  .event-time { color: var(--text3); white-space: nowrap; flex-shrink: 0; font-family: monospace; font-size: 11px; }
+  .event-source { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--bg3); color: var(--text2); flex-shrink: 0; }
+  .event-msg { color: var(--text2); flex: 1; }
+  .badge-info  { color: var(--accent); }
+  .badge-warn  { color: var(--amber); }
+  .badge-error { color: var(--red); }
+
+  /* Section divider */
+  .section-header { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin: 24px 0 12px; }
+
+  /* Loading / error states */
+  .loading { display: flex; align-items: center; justify-content: center; height: 120px; color: var(--text3); font-size: 12px; }
+  .error-banner { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius); padding: 10px 14px; font-size: 12px; color: #fca5a5; margin-bottom: 16px; display: none; }
+
+  @media (max-width: 600px) {
+    main { padding: 12px 14px; }
+    .metric-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .mc-value { font-size: 17px; }
+    header { padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+<header>
+  <div class="header-left">
+    <svg class="logo" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="13" stroke="#3b82f6" stroke-width="1.5"/>
+      <circle cx="14" cy="14" r="4" fill="#3b82f6"/>
+      <line x1="14" y1="1" x2="14" y2="6" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="14" y1="22" x2="14" y2="27" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="1" y1="14" x2="6" y2="14" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="22" y1="14" x2="27" y2="14" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <span class="header-title">GPS / NTP Monitor</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="status-dot" id="status-dot"></div>
+    <span class="last-update" id="last-update">—</span>
+  </div>
+</header>
+
+<main>
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="controls">
+    <div class="seg" id="range-seg">
+      <button class="active" data-range="day">Day</button>
+      <button data-range="week">Week</button>
+      <button data-range="month">Month</button>
+      <button data-range="year">Year</button>
+    </div>
+    <button class="refresh-btn" id="refresh-btn">&#8635; Refresh</button>
+    <div class="seg" id="autorefresh-seg">
+      <button class="active" data-interval="0">Manual</button>
+      <button data-interval="30">30s</button>
+      <button data-interval="60">1m</button>
+      <button data-interval="300">5m</button>
+    </div>
+    <span id="refresh-countdown" style="font-size:11px;color:var(--text3);min-width:32px"></span>
+  </div>
+
+  <div class="tab-nav" id="tab-nav">
+    <button class="tab-btn active" data-tab="tracking">Chrony tracking</button>
+    <button class="tab-btn" data-tab="sources">Sources</button>
+    <button class="tab-btn" data-tab="sourcestats">Sourcestats</button>
+    <button class="tab-btn" data-tab="gpsd">GPSD</button>
+    <button class="tab-btn" data-tab="system">System</button>
+    <button class="tab-btn" data-tab="events">Events</button>
+  </div>
+
+  <!-- ── Chrony Tracking ───────────────────────────── -->
+  <div id="tab-tracking">
+    <div class="metric-grid" id="mc-tracking"></div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">System offset</span>
+        <div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>ns</div></div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chart-sys-offset"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">RMS offset</span>
+        <div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>ns</div></div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chart-rms-offset"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Root dispersion</span>
+        <div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>µs</div></div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chart-root-disp"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Root delay</span>
+        <div class="legend"><div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div>ns</div></div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chart-root-delay"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Frequency &amp; skew</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Freq offset (ppm)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Skew (ppm)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div>Residual freq (ppm)</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="chart-freq"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Chrony Sources ───────────────────────────── -->
+  <div id="tab-sources" style="display:none">
+    <div class="loading" id="sources-loading">Loading source data…</div>
+    <div id="sources-content" style="display:none"></div>
+  </div>
+
+  <!-- ── Chrony Sourcestats ───────────────────────── -->
+  <div id="tab-sourcestats" style="display:none">
+    <div class="loading" id="sourcestats-loading">Loading sourcestats…</div>
+    <div id="sourcestats-content" style="display:none"></div>
+  </div>
+
+  <!-- ── GPSD ─────────────────────────────────────── -->
+  <div id="tab-gpsd" style="display:none">
+    <div class="metric-grid" id="mc-gpsd"></div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Dilution of precision</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>HDOP</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>TDOP</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>VDOP</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div>PDOP</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-dop"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Satellites</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Used</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#8b93a7"></div>Seen</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="chart-sats"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Altitude MSL (m)</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div>Altitude</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chart-alt"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── System ───────────────────────────────────── -->
+  <div id="tab-system" style="display:none">
+    <div class="metric-grid" id="mc-system"></div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">CPU temperature vs frequency offset</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>CPU temp (°C) ← left</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Freq offset (ppm) → right</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-temp"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">System load</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>1 min</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>5 min</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>15 min</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="chart-load"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="panel-header">
+        <span class="panel-title">Memory usage (MB)</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div>Used</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#1e2535"></div>Free</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="chart-mem"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Events ───────────────────────────────────── -->
+  <div id="tab-events" style="display:none">
+    <div class="controls" style="margin-bottom:14px">
+      <div class="seg" id="event-level-seg">
+        <button class="active" data-level="">All</button>
+        <button data-level="info">Info</button>
+        <button data-level="warn">Warn</button>
+        <button data-level="error">Error</button>
+      </div>
+    </div>
+    <div class="events-list" id="events-list">
+      <div class="loading">Loading events…</div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentRange = 'day';
+let currentTab = 'tracking';
+let charts = {};
+let statusInterval = null;
+
+// ── Chart defaults ──────────────────────────────────────────────────────────
+Chart.defaults.color = '#8b93a7';
+Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,sans-serif";
+Chart.defaults.font.size = 10;
+
+// Format a bucket timestamp into a readable label based on current range
+function bucketLabel(ts) {
+  const d = new Date(ts * 1000);
+  if (currentRange === 'year')
+    // e.g. "Jan 21" — one tick per day, month gives context
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  if (currentRange === 'month')
+    // e.g. "Mon 21 Mar" — day name + date, no time needed at hourly resolution
+    return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  if (currentRange === 'week')
+    // e.g. "Mon 21 Mar 14:00" — day + date + time to distinguish days clearly
+    return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' +
+           d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // day — just time is sufficient within a single day
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Extract ordered labels and values from rows for a given key
+function rowsToLV(rows, key, multiplier = 1, tsKey = 'bucket') {
+  return rows
+    .filter(r => r[key] != null)
+    .map(r => ({ label: bucketLabel(r[tsKey] || r.ts), value: r[key] * multiplier }));
+}
+
+// Build a Chart.js dataset from label+value pairs
+function ds(label, lv, color, fill = false) {
+  return {
+    label,
+    data: lv.map(p => p.value),
+    borderColor: color,
+    backgroundColor: color + (fill ? '22' : '10'),
+    borderWidth: 1.5,
+    pointRadius: 0,
+    pointHoverRadius: 3,
+    tension: 0.3,
+    fill,
+  };
+}
+
+// Create or replace a chart using shared x-axis labels from the first dataset's lv array
+function mkChart(id, dsConfigs, yLabel) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (charts[id]) charts[id].destroy();
+
+  // All datasets should share the same label set (from the first non-empty one)
+  const labels = dsConfigs.find(d => d.lv && d.lv.length)?.lv.map(p => p.label) || [];
+  const datasets = dsConfigs.map(d => ds(d.label, d.lv, d.color, d.fill));
+
+  charts[id] = new Chart(el, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e2535',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#e8ecf4',
+          bodyColor: '#8b93a7',
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: currentRange === 'day' ? 12 : currentRange === 'week' ? 14 : 10,
+            autoSkip: true,
+            color: '#555e72',
+            maxRotation: currentRange === 'day' ? 0 : 45,
+            minRotation: currentRange === 'day' ? 0 : 30,
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          title: { display: !!yLabel, text: yLabel, color: '#555e72', font: { size: 10 } },
+          ticks: { color: '#555e72' },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        }
+      }
+    }
+  });
+}
+
+// Convenience: rows → lv with optional multiplier
+function rowsToXY(rows, key, tsKey = 'bucket', multiplier = 1) {
+  return rowsToLV(rows, key, multiplier, tsKey);
+}
+
+function formatTS(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function fmtNum(v, digits = 3) {
+  if (v == null || isNaN(v)) return '—';
+  const abs = Math.abs(v);
+  if (abs === 0) return '0';
+  if (abs < 1e-6) return (v * 1e9).toFixed(1) + ' ns';
+  if (abs < 1e-3) return (v * 1e6).toFixed(2) + ' µs';
+  if (abs < 1)    return (v * 1e3).toFixed(3) + ' ms';
+  return v.toFixed(digits);
+}
+
+function dopClass(v) {
+  if (v == null) return '';
+  if (v < 1.5) return 'good';
+  if (v < 3)   return 'warn';
+  return 'bad';
+}
+
+function tempClass(v) {
+  if (v == null) return '';
+  if (v < 60)  return 'good';
+  if (v < 75)  return 'warn';
+  return 'bad';
+}
+
+// ── Status snapshot ─────────────────────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const r = await fetch(`${API}/api/status`);
+    const d = await r.json();
+    renderStatus(d);
+    document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('status-dot').className = 'status-dot';
+  } catch(e) {
+    document.getElementById('status-dot').className = 'status-dot error';
+    showError('Cannot reach API at ' + API + '. Is api.py running?');
+  }
+}
+
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  b.textContent = msg;
+  b.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('error-banner').style.display = 'none';
+}
+
+
+
+function renderStatus(d) {
+  hideError();
+  const ct = d.chrony_tracking || {};
+  const gps = d.gpsd || {};
+  const sys = d.system || {};
+
+  if (currentTab === 'tracking') renderTrackingCards(ct);
+  if (currentTab === 'gpsd')     renderGpsdCards(gps);
+  if (currentTab === 'system')   renderSystemCards(sys);
+}
+
+function renderTrackingCards(ct) {
+  const el = document.getElementById('mc-tracking');
+  if (!el) return;
+  const ns = v => v != null ? (v * 1e9).toFixed(1) : '—';
+  const us = v => v != null ? (v * 1e6).toFixed(3) : '—';
+  el.innerHTML = `
+    <div class="mc"><div class="mc-label">System offset</div><div class="mc-value">${ns(ct.sys_time_offset)} <span class="mc-unit">ns</span></div></div>
+    <div class="mc"><div class="mc-label">RMS offset</div><div class="mc-value">${ns(ct.rms_offset)} <span class="mc-unit">ns</span></div></div>
+    <div class="mc"><div class="mc-label">Freq offset</div><div class="mc-value">${ct.freq_offset != null ? ct.freq_offset.toFixed(4) : '—'} <span class="mc-unit">ppm</span></div></div>
+    <div class="mc"><div class="mc-label">Skew</div><div class="mc-value">${ct.skew != null ? ct.skew.toFixed(4) : '—'} <span class="mc-unit">ppm</span></div></div>
+    <div class="mc"><div class="mc-label">Root dispersion</div><div class="mc-value">${us(ct.root_dispersion)} <span class="mc-unit">µs</span></div></div>
+    <div class="mc"><div class="mc-label">Root delay</div><div class="mc-value">${ns(ct.root_delay)} <span class="mc-unit">ns</span></div></div>
+    <div class="mc ${ct.stratum === 1 ? 'good' : ct.stratum <= 3 ? '' : 'warn'}"><div class="mc-label">Stratum</div><div class="mc-value">${ct.stratum ?? '—'}</div></div>
+    <div class="mc"><div class="mc-label">Leap status</div><div class="mc-value" style="font-size:13px">${ct.leap_status ?? '—'}</div></div>
+    <div class="mc"><div class="mc-label">Ref ID</div><div class="mc-value" style="font-size:13px">${ct.ref_id ?? '—'}</div></div>
+  `;
+}
+
+function renderGpsdCards(gps) {
+  const el = document.getElementById('mc-gpsd');
+  if (!el) return;
+  const modeStr = { 1: 'No fix', 2: '2D fix', 3: '3D fix' }[gps.fix_mode] ?? '—';
+  const modeClass = gps.fix_mode === 3 ? 'good' : gps.fix_mode === 2 ? 'warn' : 'bad';
+  el.innerHTML = `
+    <div class="mc ${modeClass}"><div class="mc-label">Fix mode</div><div class="mc-value" style="font-size:14px">${modeStr}</div></div>
+    <div class="mc"><div class="mc-label">Altitude MSL</div><div class="mc-value">${gps.altitude != null ? gps.altitude.toFixed(1) : '—'} <span class="mc-unit">m</span></div></div>
+    <div class="mc ${dopClass(gps.hdop)}"><div class="mc-label">HDOP</div><div class="mc-value">${gps.hdop != null ? gps.hdop.toFixed(2) : '—'}</div></div>
+    <div class="mc ${dopClass(gps.vdop)}"><div class="mc-label">VDOP</div><div class="mc-value">${gps.vdop != null ? gps.vdop.toFixed(2) : '—'}</div></div>
+    <div class="mc ${dopClass(gps.tdop)}"><div class="mc-label">TDOP</div><div class="mc-value">${gps.tdop != null ? gps.tdop.toFixed(2) : '—'}</div></div>
+    <div class="mc ${dopClass(gps.pdop)}"><div class="mc-label">PDOP</div><div class="mc-value">${gps.pdop != null ? gps.pdop.toFixed(2) : '—'}</div></div>
+    <div class="mc"><div class="mc-label">Sats used</div><div class="mc-value">${gps.sats_used ?? '—'}</div></div>
+    <div class="mc"><div class="mc-label">Sats seen</div><div class="mc-value">${gps.sats_seen ?? '—'}</div></div>
+    <div class="mc"><div class="mc-label">Time error</div><div class="mc-value" style="font-size:14px">${gps.time_err != null ? (gps.time_err * 1e9).toFixed(0) + ' <span class="mc-unit">ns</span>' : '—'}</div></div>
+    <div class="mc"><div class="mc-label">Leap secs</div><div class="mc-value">${gps.leap_secs ?? '—'}</div></div>
+  `;
+}
+
+function renderSystemCards(sys) {
+  const el = document.getElementById('mc-system');
+  if (!el) return;
+  const memPct = sys.mem_total ? Math.round((sys.mem_used / sys.mem_total) * 100) : null;
+  el.innerHTML = `
+    <div class="mc ${tempClass(sys.cpu_temp)}"><div class="mc-label">CPU temp</div><div class="mc-value">${sys.cpu_temp != null ? sys.cpu_temp.toFixed(1) : '—'} <span class="mc-unit">°C</span></div></div>
+    <div class="mc"><div class="mc-label">CPU freq</div><div class="mc-value">${sys.cpu_freq != null ? (sys.cpu_freq / 1000).toFixed(2) : '—'} <span class="mc-unit">GHz</span></div></div>
+    <div class="mc"><div class="mc-label">Load 1m</div><div class="mc-value">${sys.load_1m != null ? sys.load_1m.toFixed(2) : '—'}</div></div>
+    <div class="mc"><div class="mc-label">Load 5m</div><div class="mc-value">${sys.load_5m != null ? sys.load_5m.toFixed(2) : '—'}</div></div>
+    <div class="mc"><div class="mc-label">Memory used</div><div class="mc-value">${memPct != null ? memPct + ' <span class="mc-unit">%</span>' : '—'}</div></div>
+    <div class="mc"><div class="mc-label">Disk free</div><div class="mc-value">${sys.disk_free != null ? sys.disk_free.toLocaleString() : '—'} <span class="mc-unit">MB</span></div></div>
+  `;
+}
+
+// ── Tracking charts ──────────────────────────────────────────────────────────
+async function loadTracking() {
+  const r = await fetch(`${API}/api/chrony/tracking?range=${currentRange}`);
+  const d = await r.json();
+  const rows = d.rows || [];
+  const toNanos  = (rows, key) => rowsToLV(rows, key, 1e9);
+  const toMicros = (rows, key) => rowsToLV(rows, key, 1e6);
+
+  mkChart('chart-sys-offset',  [{ label: 'System offset (ns)',    lv: toNanos(rows,  'sys_time_offset'), color: '#3b82f6' }], 'ns');
+  mkChart('chart-rms-offset',  [{ label: 'RMS offset (ns)',       lv: toNanos(rows,  'rms_offset'),      color: '#22c55e' }], 'ns');
+  mkChart('chart-root-disp',   [{ label: 'Root dispersion (µs)',  lv: toMicros(rows, 'root_dispersion'), color: '#f59e0b' }], 'µs');
+  mkChart('chart-root-delay',  [{ label: 'Root delay (ns)',       lv: toNanos(rows,  'root_delay'),      color: '#ec4899' }], 'ns');
+
+  mkChart('chart-freq', [
+    { label: 'Freq offset (ppm)', lv: rowsToLV(rows, 'freq_offset'),   color: '#a855f7' },
+    { label: 'Skew (ppm)',         lv: rowsToLV(rows, 'skew'),          color: '#ef4444' },
+    { label: 'Residual (ppm)',     lv: rowsToLV(rows, 'residual_freq'), color: '#14b8a6' },
+  ], 'ppm');
+}
+
+// ── Sources charts ───────────────────────────────────────────────────────────
+async function loadSources() {
+  document.getElementById('sources-loading').style.display = 'flex';
+  document.getElementById('sources-content').style.display = 'none';
+
+  const r = await fetch(`${API}/api/chrony/sources?range=${currentRange}`);
+  const d = await r.json();
+  const container = document.getElementById('sources-content');
+  container.innerHTML = '';
+
+  const sources = d.sources || [];
+  const bySource = d.rows_by_source || {};
+  const hostnames = d.hostnames || {};
+
+  const COLORS = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#14b8a6','#ef4444'];
+
+  sources.forEach((name, idx) => {
+    const rows = bySource[name] || [];
+    const color = COLORS[idx % COLORS.length];
+    const canvasId = 'src-offset-' + idx;
+    const displayName = (hostnames[name] && hostnames[name] !== name)
+      ? `${hostnames[name]} (${name})` : name;
+
+    const panel = document.createElement('div');
+    panel.className = 'chart-panel';
+    panel.innerHTML = `
+      <div class="panel-header">
+        <span class="panel-title">${displayName} — offset &amp; error bound</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:${color}"></div>Offset</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${color}44"></div>Error bound</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="${canvasId}"></canvas></div>`;
+    container.appendChild(panel);
+
+    setTimeout(() => {
+      const toMicros = (rows, key) => rowsToLV(rows, key, 1e6);
+      mkChart(canvasId, [
+        { label: 'Offset (µs)',    lv: toMicros(rows, 'offset'),    color: color },
+        { label: 'Err bound (µs)', lv: toMicros(rows, 'err_bound'), color: color + '99' },
+      ], 'µs');
+    }, 0);
+  });
+
+  if (sources.length === 0) {
+    container.innerHTML = '<div class="loading">No source data in this time range.</div>';
+  }
+
+  document.getElementById('sources-loading').style.display = 'none';
+  container.style.display = 'block';
+}
+
+// ── Sourcestats charts ───────────────────────────────────────────────────────
+async function loadSourcestats() {
+  document.getElementById('sourcestats-loading').style.display = 'flex';
+  document.getElementById('sourcestats-content').style.display = 'none';
+
+  const r = await fetch(`${API}/api/chrony/sourcestats?range=${currentRange}`);
+  const d = await r.json();
+  const container = document.getElementById('sourcestats-content');
+  container.innerHTML = '';
+
+  const COLORS = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#14b8a6','#ef4444'];
+  const sources = d.sources || [];
+  const bySource = d.rows_by_source || {};
+  const hostnames = d.hostnames || {};
+
+  sources.forEach((name, idx) => {
+    const rows = bySource[name] || [];
+    const color = COLORS[idx % COLORS.length];
+    const c1 = 'sstat-dev-' + idx, c2 = 'sstat-freq-' + idx;
+
+    const displayName = (hostnames[name] && hostnames[name] !== name)
+      ? `${hostnames[name]} (${name})` : name;
+    const panel = document.createElement('div');
+    panel.className = 'chart-panel';
+    panel.innerHTML = `
+      <div class="panel-header">
+        <span class="panel-title">${displayName}</span>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:${color}"></div>Std dev</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Residual freq</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Skew</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="${c1}"></canvas></div>
+      <div style="height:10px"></div>
+      <div class="chart-wrap" style="height:140px"><canvas id="${c2}"></canvas></div>`;
+    container.appendChild(panel);
+
+    setTimeout(() => {
+      const toMicros = (rows, key) => rowsToLV(rows, key, 1e6);
+      mkChart(c1, [
+        { label: 'Std dev (µs)', lv: toMicros(rows, 'std_dev'), color: color },
+      ], 'µs');
+      mkChart(c2, [
+        { label: 'Residual freq (ppm)', lv: rowsToLV(rows, 'residual_freq'), color: '#ef4444' },
+        { label: 'Skew (ppm)',           lv: rowsToLV(rows, 'skew'),          color: '#f59e0b' },
+      ], 'ppm');
+    }, 0);
+  });
+
+  if (sources.length === 0) {
+    container.innerHTML = '<div class="loading">No sourcestats data in this time range.</div>';
+  }
+
+  document.getElementById('sourcestats-loading').style.display = 'none';
+  container.style.display = 'block';
+}
+
+// ── GPSD charts ──────────────────────────────────────────────────────────────
+async function loadGpsd() {
+  const r = await fetch(`${API}/api/gpsd?range=${currentRange}`);
+  const d = await r.json();
+  const rows = d.rows || [];
+
+
+  mkChart('chart-dop', [
+    { label: 'HDOP', lv: rowsToLV(rows, 'hdop'), color: '#3b82f6' },
+    { label: 'TDOP', lv: rowsToLV(rows, 'tdop'), color: '#22c55e' },
+    { label: 'VDOP', lv: rowsToLV(rows, 'vdop'), color: '#f59e0b' },
+    { label: 'PDOP', lv: rowsToLV(rows, 'pdop'), color: '#ec4899' },
+  ]);
+
+  mkChart('chart-sats', [
+    { label: 'Used', lv: rowsToLV(rows, 'sats_used'), color: '#3b82f6', fill: true },
+    { label: 'Seen', lv: rowsToLV(rows, 'sats_seen'), color: '#8b93a7' },
+  ]);
+
+  mkChart('chart-alt', [
+    { label: 'Altitude (m)', lv: rowsToLV(rows, 'altitude'), color: '#14b8a6', fill: true },
+  ], 'm');
+}
+
+// ── System charts ─────────────────────────────────────────────────────────────
+// Synchronise zero point across dual Y-axis charts
+function syncZero(lvArrays) {
+  const vals = lvArrays.map(lv => lv.map(p => p.value).filter(v => v != null && !isNaN(v)));
+  const mins = vals.map(v => v.length ? Math.min(...v) : 0);
+  const maxs = vals.map(v => v.length ? Math.max(...v) : 1);
+  const pad = (mn, mx) => { const r = (mx - mn) || 1; return [mn - r*0.1, mx + r*0.1]; };
+  const ranges = mins.map((mn, i) => pad(mn, maxs[i]));
+  const fracs = ranges.map(([mn, mx]) => {
+    if (mn >= 0) return 0;
+    if (mx <= 0) return 1;
+    return -mn / (mx - mn);
+  });
+  const frac = Math.max(...fracs);
+  return ranges.map(([mn, mx]) => {
+    const totalSpan = Math.max(Math.abs(mx), Math.abs(mn)) / Math.max(frac, 1 - frac);
+    return { min: -frac * totalSpan, max: (1 - frac) * totalSpan };
+  });
+}
+
+async function loadSystem() {
+  const [sysResp, trackResp] = await Promise.all([
+    fetch(`${API}/api/system?range=${currentRange}`),
+    fetch(`${API}/api/chrony/tracking?range=${currentRange}`)
+  ]);
+  const sysData   = await sysResp.json();
+  const trackData = await trackResp.json();
+  const rows      = sysData.rows  || [];
+  const trows     = trackData.rows || [];
+
+
+  const el = document.getElementById('chart-temp');
+  if (el) {
+    if (charts['chart-temp']) charts['chart-temp'].destroy();
+
+    const tempLV  = rowsToLV(rows,  'cpu_temp');
+    const freqLV  = rowsToLV(trows, 'freq_offset');
+    const labels  = tempLV.length >= freqLV.length
+                    ? tempLV.map(p => p.label)
+                    : freqLV.map(p => p.label);
+
+    // Pad each axis 10% beyond its data range for visual breathing room
+    function padRange(lv) {
+      const vals = lv.map(p => p.value).filter(v => v != null && !isNaN(v));
+      if (!vals.length) return { min: 0, max: 1 };
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      const pad = (mx - mn) * 0.1 || Math.abs(mx) * 0.1 || 0.1;
+      return { min: mn - pad, max: mx + pad };
+    }
+    const tempRange = padRange(tempLV);
+    const freqRange = padRange(freqLV);
+    charts['chart-temp'] = new Chart(el, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'CPU temp (°C)',
+            data: tempLV.map(p => p.value),
+            borderColor: '#ef4444',
+            backgroundColor: '#ef444422',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'yTemp',
+          },
+          {
+            label: 'Freq offset (ppm)',
+            data: freqLV.map(p => p.value),
+            borderColor: '#a855f7',
+            backgroundColor: '#a855f710',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'yFreq',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e2535',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            titleColor: '#e8ecf4',
+            bodyColor: '#8b93a7',
+            padding: 10,
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: currentRange === 'day' ? 12 : currentRange === 'week' ? 14 : 10,
+              autoSkip: true,
+              color: '#555e72',
+              maxRotation: currentRange === 'day' ? 0 : 45,
+              minRotation: currentRange === 'day' ? 0 : 30,
+            },
+            grid: { color: 'rgba(255,255,255,0.04)' }
+          },
+          yTemp: {
+            type: 'linear',
+            position: 'left',
+            min: tempRange.min,
+            max: tempRange.max,
+            title: { display: true, text: '°C', color: '#ef4444', font: { size: 10 } },
+            ticks: { color: '#ef4444' },
+            grid: { color: 'rgba(255,255,255,0.04)' }
+          },
+          yFreq: {
+            type: 'linear',
+            position: 'right',
+            min: freqRange.min,
+            max: freqRange.max,
+            title: { display: true, text: 'ppm', color: '#a855f7', font: { size: 10 } },
+            ticks: { color: '#a855f7' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  }
+
+  mkChart('chart-load', [
+    { label: '1 min',  lv: rowsToLV(rows, 'load_1m'),  color: '#3b82f6' },
+    { label: '5 min',  lv: rowsToLV(rows, 'load_5m'),  color: '#22c55e' },
+    { label: '15 min', lv: rowsToLV(rows, 'load_15m'), color: '#f59e0b' },
+  ]);
+
+  const toMB = (rows, key) => rowsToLV(rows, key).map(p => ({ ...p, value: Math.round(p.value / 1024) }));
+  mkChart('chart-mem', [
+    { label: 'Used (MB)', lv: toMB(rows, 'mem_used'), color: '#a855f7', fill: true },
+  ], 'MB');
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+let currentEventLevel = '';
+async function loadEvents() {
+  const el = document.getElementById('events-list');
+  const level = currentEventLevel;
+  const url = `${API}/api/events?limit=100${level ? '&level='+level : ''}`;
+  try {
+    const r = await fetch(url);
+    const d = await r.json();
+    const rows = d.rows || [];
+    if (rows.length === 0) {
+      el.innerHTML = '<div class="loading">No events found.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(row => `
+      <div class="event-row">
+        <span class="event-time">${new Date(row.ts * 1000).toLocaleString()}</span>
+        <span class="event-source">${row.source}</span>
+        <span class="badge-${row.level}" style="font-size:10px;flex-shrink:0">${row.level.toUpperCase()}</span>
+        <span class="event-msg">${row.msg}</span>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="loading">Failed to load events.</div>';
+  }
+}
+
+// ── Tab / range switching ────────────────────────────────────────────────────
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['tracking','sources','sourcestats','gpsd','system','events'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+  loadCurrentTab();
+}
+
+function loadCurrentTab() {
+  switch(currentTab) {
+    case 'tracking':    fetchStatus(); loadTracking();    break;
+    case 'sources':     loadSources();     break;
+    case 'sourcestats': loadSourcestats(); break;
+    case 'gpsd':        fetchStatus(); loadGpsd();        break;
+    case 'system':      fetchStatus(); loadSystem();      break;
+    case 'events':      loadEvents();      break;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('#range-seg button').forEach(b => {
+  b.addEventListener('click', () => {
+    currentRange = b.dataset.range;
+    document.querySelectorAll('#range-seg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    loadCurrentTab();
+  });
+});
+
+document.querySelectorAll('#tab-nav .tab-btn').forEach(b => {
+  b.addEventListener('click', () => setTab(b.dataset.tab));
+});
+
+document.getElementById('refresh-btn').addEventListener('click', loadCurrentTab);
+
+document.querySelectorAll('#event-level-seg button').forEach(b => {
+  b.addEventListener('click', () => {
+    currentEventLevel = b.dataset.level;
+    document.querySelectorAll('#event-level-seg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    loadEvents();
+  });
+});
+
+// Auto-refresh state
+let _refreshInterval = 0;
+let _refreshTimer    = null;
+let _refreshCountdown = 0;
+let _countdownTimer  = null;
+
+function setAutoRefresh(secs, btn) {
+  // Clear existing timers
+  if (_refreshTimer)   { clearInterval(_refreshTimer);   _refreshTimer   = null; }
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+  document.getElementById('refresh-countdown').textContent = '';
+
+  _refreshInterval = secs;
+  document.querySelectorAll('#autorefresh-seg button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (secs === 0) return;
+
+  _refreshCountdown = secs;
+  updateCountdown();
+
+  _countdownTimer = setInterval(() => {
+    _refreshCountdown--;
+    updateCountdown();
+    if (_refreshCountdown <= 0) _refreshCountdown = secs;
+  }, 1000);
+
+  _refreshTimer = setInterval(() => {
+    _refreshCountdown = secs;
+    loadCurrentTab();
+  }, secs * 1000);
+}
+
+function updateCountdown() {
+  const el = document.getElementById('refresh-countdown');
+  if (!el || _refreshInterval === 0) return;
+  el.textContent = _refreshCountdown + 's';
+}
+
+document.querySelectorAll('#autorefresh-seg button').forEach(b => {
+  b.addEventListener('click', () => setAutoRefresh(parseInt(b.dataset.interval), b));
+});
+
+// Initial load
+loadCurrentTab();
+</script>
+</body>
+</html>

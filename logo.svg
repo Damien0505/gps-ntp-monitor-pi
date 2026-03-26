@@ -1,0 +1,129 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <style>
+    .bg { fill: #0e1117; }
+    .earth { fill: #0f2744; stroke: #2255aa; stroke-width: 1.5; }
+    .earth-land { fill: #1a3a5c; }
+    .orbit { fill: none; stroke: #1e2d45; stroke-width: 1; }
+    .sat-body { fill: #378ADD; }
+    .sat-panel { fill: #1D5A8A; }
+    .signal { stroke: #378ADD; stroke-width: 0.5; fill: none; stroke-dasharray: 3 4; opacity: 0.5; }
+    .pulse-ring { fill: none; stroke: #22c55e; stroke-width: 0.5; }
+    .clock-ring { fill: #0e1822; stroke: #3b82f6; stroke-width: 1.5; }
+    .clock-tick { stroke: #3b82f6; stroke-width: 1.5; }
+    .clock-hand { stroke: #22c55e; stroke-width: 2; stroke-linecap: round; }
+    .clock-hand-s { stroke: #ef4444; stroke-width: 1; stroke-linecap: round; }
+    .pps-line { stroke: #22c55e; stroke-width: 1.5; fill: none; }
+    .gps-line { stroke: #3b82f6; stroke-width: 1; fill: none; }
+    .sys-line { stroke: #ef4444; stroke-width: 1; fill: none; }
+    .panel-box { fill: #0e1822; }
+    .crosshair { stroke: #3b82f6; stroke-width: 0.5; opacity: 0.25; }
+    .grid { fill: none; stroke: #1a2030; stroke-width: 0.5; }
+    .lbl-main { font-family: 'Courier New', monospace; font-size: 28px; font-weight: 700; fill: #e8ecf4; letter-spacing: 3px; }
+    .lbl-sub { font-family: 'Courier New', monospace; font-size: 10px; fill: #555e72; letter-spacing: 4px; }
+    .lbl-tag { font-family: 'Courier New', monospace; font-size: 9px; fill: #378ADD; }
+    .lbl-corner { font-family: 'Courier New', monospace; font-size: 9px; fill: #2a3550; }
+  </style>
+</defs>
+
+<rect width="512" height="512" class="bg" rx="16"/>
+
+<line x1="256" y1="0" x2="256" y2="512" class="crosshair"/>
+<line x1="0" y1="256" x2="512" y2="256" class="crosshair"/>
+<circle cx="256" cy="256" r="60"  class="grid"/>
+<circle cx="256" cy="256" r="110" class="grid"/>
+<circle cx="256" cy="256" r="160" class="grid"/>
+<circle cx="256" cy="256" r="210" class="grid"/>
+
+<circle cx="256" cy="256" r="46" class="earth"/>
+<ellipse cx="246" cy="246" rx="11" ry="7"  class="earth-land"/>
+<ellipse cx="263" cy="263" rx="9"  ry="6"  class="earth-land"/>
+<ellipse cx="240" cy="265" rx="6"  ry="4"  class="earth-land"/>
+<ellipse cx="268" cy="246" rx="5"  ry="3"  class="earth-land"/>
+<circle cx="256" cy="256" r="46" fill="none" stroke="#2255aa" stroke-width="0.5" opacity="0.5"/>
+
+<ellipse cx="256" cy="256" rx="130" ry="48" class="orbit" transform="rotate(-25 256 256)"/>
+<ellipse cx="256" cy="256" rx="130" ry="48" class="orbit" transform="rotate(35 256 256)"/>
+<ellipse cx="256" cy="256" rx="110" ry="40" class="orbit" transform="rotate(85 256 256)"/>
+<ellipse cx="256" cy="256" rx="115" ry="42" class="orbit" transform="rotate(-70 256 256)"/>
+
+<g transform="rotate(-25 256 256) translate(386 256)">
+  <rect x="-6" y="-4" width="12" height="8" rx="1.5" class="sat-body"/>
+  <rect x="-16" y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+  <rect x="7"  y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+</g>
+<g transform="rotate(35 256 256) translate(386 256)">
+  <rect x="-6" y="-4" width="12" height="8" rx="1.5" class="sat-body"/>
+  <rect x="-16" y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+  <rect x="7"  y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+</g>
+<g transform="rotate(160 256 256) translate(386 256)">
+  <rect x="-6" y="-4" width="12" height="8" rx="1.5" class="sat-body"/>
+  <rect x="-16" y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+  <rect x="7"  y="-2" width="9" height="4" rx="0.5" class="sat-panel"/>
+</g>
+<g transform="rotate(-70 256 256) translate(371 256)">
+  <rect x="-5" y="-3.5" width="10" height="7" rx="1" class="sat-body"/>
+  <rect x="-13" y="-2" width="7"  height="4" rx="0.5" class="sat-panel"/>
+  <rect x="6"   y="-2" width="7"  height="4" rx="0.5" class="sat-panel"/>
+</g>
+<g transform="rotate(85 256 256) translate(366 256)">
+  <rect x="-5" y="-3.5" width="10" height="7" rx="1" class="sat-body"/>
+  <rect x="-13" y="-2" width="7"  height="4" rx="0.5" class="sat-panel"/>
+  <rect x="6"   y="-2" width="7"  height="4" rx="0.5" class="sat-panel"/>
+</g>
+
+<line x1="256" y1="210" x2="228" y2="230" class="signal"/>
+<line x1="256" y1="210" x2="272" y2="225" class="signal"/>
+<line x1="218" y1="260" x2="232" y2="254" class="signal"/>
+<line x1="294" y1="258" x2="280" y2="253" class="signal"/>
+
+<circle cx="256" cy="256" r="54"  fill="none" stroke="#22c55e" stroke-width="0.5" opacity="0.18" class="pulse-ring"/>
+<circle cx="256" cy="256" r="62"  fill="none" stroke="#22c55e" stroke-width="0.5" opacity="0.11" class="pulse-ring"/>
+<circle cx="256" cy="256" r="71"  fill="none" stroke="#22c55e" stroke-width="0.5" opacity="0.06" class="pulse-ring"/>
+
+<g transform="translate(90 90)">
+  <circle cx="0" cy="0" r="36" class="clock-ring"/>
+  <line x1="0"   y1="-28" x2="0"   y2="-22" class="clock-tick"/>
+  <line x1="28"  y1="0"   x2="22"  y2="0"   class="clock-tick"/>
+  <line x1="0"   y1="28"  x2="0"   y2="22"  class="clock-tick"/>
+  <line x1="-28" y1="0"   x2="-22" y2="0"   class="clock-tick"/>
+  <line x1="0" y1="0" x2="0"  y2="-18" class="clock-hand"/>
+  <line x1="0" y1="0" x2="13" y2="8"   class="clock-hand"/>
+  <line x1="0" y1="0" x2="20" y2="-12" class="clock-hand-s"/>
+  <circle cx="0" cy="0" r="2.5" fill="#22c55e"/>
+  <text x="0" y="50" text-anchor="middle" class="lbl-tag">STRATUM 1</text>
+</g>
+
+<g transform="translate(90 422)">
+  <rect x="-36" y="-24" width="72" height="44" rx="4" class="panel-box" stroke="#ef4444" stroke-width="1"/>
+  <polyline points="-28,12 -18,-6 -10,12 -3,-14 5,12 13,-3 21,12 28,-6" class="sys-line"/>
+  <text x="0" y="34" text-anchor="middle" class="lbl-tag" style="fill:#ef4444">CPU · TEMP</text>
+</g>
+
+<g transform="translate(422 90)">
+  <rect x="-36" y="-28" width="72" height="52" rx="4" class="panel-box" stroke="#3b82f6" stroke-width="1"/>
+  <polyline points="-26,16 -26,-16 -16,16 -16,-16 -6,16 -6,-16 4,16 4,-16 14,16 14,-16 24,16 24,-16" class="gps-line"/>
+  <text x="0" y="38" text-anchor="middle" class="lbl-tag">GPS · NMEA</text>
+</g>
+
+<g transform="translate(422 422)">
+  <rect x="-36" y="-24" width="72" height="44" rx="4" class="panel-box" stroke="#22c55e" stroke-width="1"/>
+  <polyline points="-28,10 -28,-10 -28,-10 -14,-10 -14,10 0,10 0,-10 14,-10 14,10 28,10" class="pps-line"/>
+  <text x="0" y="34" text-anchor="middle" class="lbl-tag" style="fill:#22c55e">PPS · SYNC</text>
+</g>
+
+<line x1="126" y1="118" x2="222" y2="222" class="signal" opacity="0.35"/>
+<line x1="126" y1="404" x2="222" y2="280" class="signal" opacity="0.25" style="stroke:#ef4444"/>
+<line x1="386" y1="118" x2="290" y2="222" class="signal" opacity="0.35"/>
+<line x1="386" y1="404" x2="286" y2="278" class="signal" opacity="0.25" style="stroke:#22c55e"/>
+
+<text x="256" y="354" text-anchor="middle" class="lbl-main">gpsclock</text>
+<text x="256" y="372" text-anchor="middle" class="lbl-sub">GPS · NTP · MONITOR</text>
+
+<text x="20" y="22"  class="lbl-corner">v1.0</text>
+<text x="492" y="22"  text-anchor="end" class="lbl-corner">STR:1</text>
+<text x="20" y="496" class="lbl-corner">chrony</text>
+<text x="492" y="496" text-anchor="end" class="lbl-corner">gpsd</text>
+
+</svg>
