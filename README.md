@@ -172,6 +172,13 @@ sqlite3 /opt/gps-ntp-monitor/monitor.db \
 - Ensure api.py is running: `systemctl status gps-ntp-api.service`
 - Check firewall: `sudo ufw allow 5000/tcp`
 
+# Screenshots:
+![Image](https://github.com/user-attachments/assets/26e2ab35-419b-44b5-8269-9964323aec47)
+![Image](https://github.com/user-attachments/assets/5f046baa-6f53-46fc-8105-4027b671256f)
+![Image](https://github.com/user-attachments/assets/c3fedb0b-c0c9-40b4-a7f1-490324f08ce0)
+![Image](https://github.com/user-attachments/assets/489e2eb2-ba6e-41fd-80ba-b9a7cabc9c29)
+![Image](https://github.com/user-attachments/assets/46c1302f-543a-4765-98cc-73c464a58013)
+
 **CPU temperature missing**
 - On Raspberry Pi: install `raspi-config` and enable thermal sensor
 - On x86: install `lm-sensors` and run `sensors-detect`
