@@ -175,11 +175,20 @@ def chrony_sources():
     start, end, bucket, r = get_range_params()
     source = request.args.get("source")
 
-    where = f"AND name = '{source}'" if source else ""
-    cols = ["offset", "err_bound", "reach"]
-
     if source:
-        rows = db.query_bucketed("chrony_sources", start, end, bucket, cols)
+        # Parameterised query — safe from SQL injection
+        sql = f"""
+            SELECT (ts / {bucket}) * {bucket} AS bucket,
+                   AVG(offset) AS offset, AVG(err_bound) AS err_bound,
+                   AVG(reach) AS reach
+            FROM chrony_sources
+            WHERE ts BETWEEN ? AND ? AND name = ?
+            GROUP BY bucket ORDER BY bucket ASC
+        """
+        with db.get_conn() as conn:
+            rows = [dict(r2) for r2 in conn.execute(sql, (start, end, source)).fetchall()]
+        add_iso(rows, "bucket")
+        return jsonify({"range": r, "bucket_secs": bucket, "source": source, "rows": rows})
     else:
         # Return distinct source names available
         with db.get_conn() as conn:
@@ -216,8 +225,6 @@ def chrony_sources():
             "rows_by_source": rows_by_source
         })
 
-    add_iso(rows, "bucket")
-    return jsonify({"range": r, "bucket_secs": bucket, "source": source, "rows": rows})
 
 
 # ---------------------------------------------------------------------------
