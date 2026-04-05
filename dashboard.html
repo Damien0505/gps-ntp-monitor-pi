@@ -97,11 +97,59 @@
   .loading { display: flex; align-items: center; justify-content: center; height: 120px; color: var(--text3); font-size: 12px; }
   .error-banner { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius); padding: 10px 14px; font-size: 12px; color: #fca5a5; margin-bottom: 16px; display: none; }
 
+  /* ── Mobile: ≤ 600px ─────────────────────────────── */
   @media (max-width: 600px) {
-    main { padding: 12px 14px; }
-    .metric-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
-    .mc-value { font-size: 17px; }
-    header { padding: 0 14px; }
+    html, body { font-size: 13px; }
+    header { padding: 0 12px; height: 48px; }
+    .header-title { font-size: 13px; }
+    .logo { width: 22px; height: 22px; }
+    .last-update { display: none; }
+
+    main { padding: 10px 10px; }
+
+    /* Controls — stack range + autorefresh on separate lines */
+    .controls { gap: 6px; }
+    .seg button { padding: 5px 10px; font-size: 11px; }
+    .refresh-btn { padding: 5px 10px; font-size: 11px; }
+    #refresh-countdown { display: none; }
+
+    /* Tab nav — scrollable, smaller text */
+    .tab-nav { margin-bottom: 12px; gap: 0; }
+    .tab-btn { padding: 8px 11px; font-size: 11px; }
+
+    /* Metric cards — 2 columns on mobile */
+    .metric-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; margin-bottom: 14px; }
+    .mc { padding: 9px 10px; }
+    .mc-label { font-size: 9px; }
+    .mc-value { font-size: 16px; }
+    .mc-unit { font-size: 10px; }
+
+    /* Chart panels */
+    .chart-panel { padding: 11px 12px; margin-bottom: 10px; }
+    .panel-header { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 10px; }
+    .panel-title { font-size: 11px; }
+    .legend { gap: 8px; }
+    .legend-item { font-size: 10px; }
+
+    /* Shorter charts on mobile */
+    .chart-wrap[style*="height:220px"] { height: 160px !important; }
+    .chart-wrap[style*="height:200px"] { height: 150px !important; }
+    .chart-wrap[style*="height:180px"] { height: 140px !important; }
+    .chart-wrap[style*="height:160px"] { height: 130px !important; }
+    .chart-wrap[style*="height:140px"] { height: 120px !important; }
+
+    /* Events — hide timestamp on very small screens, wrap nicely */
+    .event-row { gap: 6px; padding: 8px 10px; flex-wrap: wrap; }
+    .event-time { font-size: 10px; }
+  }
+
+  /* ── Tablet: 601–900px ────────────────────────────── */
+  @media (min-width: 601px) and (max-width: 900px) {
+    main { padding: 14px 16px; }
+    .metric-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+    .mc-value { font-size: 18px; }
+    .tab-btn { padding: 9px 13px; font-size: 12px; }
+    .panel-header { flex-wrap: wrap; gap: 6px; }
   }
 </style>
 </head>
@@ -307,6 +355,14 @@ let currentRange = 'day';
 let currentTab = 'tracking';
 let charts = {};
 let statusInterval = null;
+
+// ── Responsive chart height helper ──────────────────────────────────────────
+function chartH(desktop, tablet=null, mobile=null) {
+  const w = window.innerWidth;
+  if (w <= 600)  return mobile  ?? Math.round(desktop * 0.65);
+  if (w <= 900)  return tablet  ?? Math.round(desktop * 0.82);
+  return desktop;
+}
 
 // ── Chart defaults ──────────────────────────────────────────────────────────
 Chart.defaults.color = '#8b93a7';
@@ -576,7 +632,7 @@ async function loadSources() {
           <div class="legend-item"><div class="legend-dot" style="background:${color}44"></div>Error bound</div>
         </div>
       </div>
-      <div class="chart-wrap" style="height:180px"><canvas id="${canvasId}"></canvas></div>`;
+      <div class="chart-wrap" style="height:${chartH(180)}px"><canvas id="${canvasId}"></canvas></div>`;
     container.appendChild(panel);
 
     setTimeout(() => {
@@ -629,9 +685,9 @@ async function loadSourcestats() {
           <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Skew</div>
         </div>
       </div>
-      <div class="chart-wrap" style="height:160px"><canvas id="${c1}"></canvas></div>
-      <div style="height:10px"></div>
-      <div class="chart-wrap" style="height:140px"><canvas id="${c2}"></canvas></div>`;
+      <div class="chart-wrap" style="height:${chartH(160)}px"><canvas id="${c1}"></canvas></div>
+      <div style="height:8px"></div>
+      <div class="chart-wrap" style="height:${chartH(140)}px"><canvas id="${c2}"></canvas></div>`;
     container.appendChild(panel);
 
     setTimeout(() => {
