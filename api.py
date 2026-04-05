@@ -184,7 +184,9 @@ def chrony_sources():
         # Return distinct source names available
         with db.get_conn() as conn:
             names = conn.execute(
-                "SELECT DISTINCT name FROM chrony_sources ORDER BY name"
+                "SELECT DISTINCT name FROM chrony_sources "
+                "WHERE ts >= ? ORDER BY name",
+                (int(time.time()) - 86400,)
             ).fetchall()
         all_names = [r2["name"] for r2 in names]
         # PPS and GPS always first, then remaining sources alphabetically
@@ -229,7 +231,9 @@ def chrony_sourcestats():
 
     with db.get_conn() as conn:
         names = conn.execute(
-            "SELECT DISTINCT name FROM chrony_sourcestats ORDER BY name"
+            "SELECT DISTINCT name FROM chrony_sourcestats "
+            "WHERE ts >= ? ORDER BY name",
+            (int(time.time()) - 86400,)
         ).fetchall()
     all_names = [row["name"] for row in names]
     # PPS and GPS always first, then remaining sources alphabetically
