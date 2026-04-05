@@ -41,6 +41,9 @@
   .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .last-update { font-size: 11px; color: var(--text3); }
+  .clock { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .clock-local { font-size: 13px; font-weight: 600; font-family: 'Courier New', monospace; color: var(--text); letter-spacing: 0.03em; }
+  .clock-utc   { font-size: 10px; font-family: 'Courier New', monospace; color: var(--text3); letter-spacing: 0.03em; }
 
   main { padding: 20px 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
 
@@ -104,6 +107,8 @@
     .header-title { font-size: 13px; }
     .logo { width: 22px; height: 22px; }
     .last-update { display: none; }
+    .clock-local { font-size: 11px; }
+    .clock-utc   { display: none; }
 
     main { padding: 10px 10px; }
 
@@ -168,9 +173,15 @@
     </svg>
     <span class="header-title">GPS / NTP Monitor</span>
   </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <div class="status-dot" id="status-dot"></div>
-    <span class="last-update" id="last-update">—</span>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="clock">
+      <span class="clock-local" id="clock-local">—</span>
+      <span class="clock-utc"   id="clock-utc">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="last-update" id="last-update">—</span>
+    </div>
   </div>
 </header>
 
@@ -991,6 +1002,19 @@ function updateCountdown() {
 document.querySelectorAll('#autorefresh-seg button').forEach(b => {
   b.addEventListener('click', () => setAutoRefresh(parseInt(b.dataset.interval), b));
 });
+
+// ── Live clock ───────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  const localStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                 + ' '
+                 + now.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const utcStr = now.toUTCString().replace('GMT', 'UTC');
+  document.getElementById('clock-local').textContent = localStr;
+  document.getElementById('clock-utc').textContent   = utcStr;
+}
+tickClock();
+setInterval(tickClock, 1000);
 
 // Initial load
 loadCurrentTab();
